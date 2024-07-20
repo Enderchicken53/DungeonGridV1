@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dungeon Grid</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            overflow-y: auto;
+        }
+        .container {
+            position: relative;
+            padding-top: 150px; /* Ensure there is space for the fixed settings at the top */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .settings-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: white;
+            z-index: 1000;
+            padding: 10px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-bottom: 1px solid #ccc;
+        }
+        .grid-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            position: relative;
+        }
+        .grid {
+            display: grid;
+            gap: 0.01px; /* Extremely tiny gap between cells */
+            border: 1px solid #ccc;
+        }
+        .cell {
+            background-color: white;
+            border: 0.05px solid #ccc; /* Very minimal border between cells */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+            box-sizing: border-box; /* Ensure padding/border doesn't affect size */
+        }
+        .black {
+            background-color: black;
+        }
+        .green {
+            background-color: green;
+        }
+        .red {
+            background-color: red;
+        }
+        .blue {
+            background-color: blue;
+        }
+        .yellow {
+            background-color: yellow;
+        }
+        .door {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="black"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="18">X</text></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+        .row-numbers,
+        .col-numbers {
+            position: absolute;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .row-numbers {
+            flex-direction: column;
+            left: -30px; /* Adjust this value based on the desired positioning */
+        }
+        .col-numbers {
+            flex-direction: row;
+            top: -30px; /* Adjust this value based on the desired positioning */
+        }
+        .number {
+            width: 20px; /* Match the cell size */
+            height: 20px; /* Match the cell size */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 12px;
+        }
+        .toggle-container {
+            margin-bottom: 10px;
+        }
+        .toggle {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .toggle-label {
+            margin-right: 5px;
+        }
+        .toggle-switch {
+            width: 40px;
+            height: 20px;
+            border-radius: 20px;
+            background-color: #ccc;
+            position: relative;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background-color: white;
+            top: 1px;
+            left: 1px;
+            transition: transform 0.3s;
+        }
+        .toggle-switch.active::before {
+            transform: translateX(20px);
+        }
+        .hidden {
+            display: none;
+        }
+        .reset-button, .size-button {
+            margin-top: 10px;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .input-container {
+            position: relative;
+            margin-left: 10px; /* Adjust the value as needed to position the input container */
+        }
+        .input-container input {
+            width: 60px;
+            text-align: center;
+        }
+        .warning {
+            color: red;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 5px;
+        }
+        .left-align {
+            position: absolute;
+            left: 10px; /* Adjust the value as needed to position the button */
+        }
+        .advanced-color-menu {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .color-button {
+            width: 40px;
+            height: 40px;
+            margin: 0 5px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+        }
+        .credit {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 12px;
+            color: #333;
+        }
+        .bottom-right {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            z-index: 1000;
+        }
+        .save-load-menu {
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+            padding: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .save-load-menu.visible {
+            display: flex;
+        }
+        .file-name-input {
+            width: 100%;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <button class="size-button left-align" id="show-size-input-button">Set Grid Size</button>
+        <div id="normal-settings">
+            <div class="toggle-container" id="color-toggle-container">
+                <button class="mode-button" id="color-mode-button">Color Mode: White</button>
+                <button class="mode-button" id="advanced-color-button">Advanced Colors</button>
+            </div>
+            <div class="toggle-container" id="door-toggle-container">
+                <button class="mode-button" id="door-mode-button">Door Mode: Off</button>
+            </div>
+            <div class="toggle-container" id="number-toggle-container">
+                <button class="mode-button" id="number-mode-button">Number Mode: Off</button>
+            </div>
+            <button class="reset-button hidden" id="reset-number-button">Reset Number Counter</button>
+            <button class="reset-button hidden" id="clear-numbers-button">Clear All Numbers</button>
+        </div>
+        <div id="advanced-settings" class="hidden">
+            <button class="size-button" id="back-to-normal-button">Back</button>
+            <div class="advanced-color-menu">
+                <div class="color-button green" id="green-button"></div>
+                <div class="color-button red" id="red-button"></div>
+                <div class="color-button blue" id="blue-button"></div>
+                <div class="color-button yellow" id="yellow-button"></div>
+            </div>
+        </div>
+        <div class="input-container hidden" id="grid-size-container">
+            <input type="text" id="grid-size-input" placeholder="24x24">
+            <button class="size-button" id="set-size-button">Set</button>
+            <button class="size-button" id="back-button">Back</button>
+            <div class="warning hidden" id="warning-message">Setting grid size will reset any progress</div>
+        </div>
+        <div class="credit">Created by U/Enderchicken53 with ChatGPT-4</div>
+    </div>
+    <div class="container">
+        <div class="grid-container">
+            <!-- Row Numbers -->
+            <div class="row-numbers" id="row-numbers"></div>
+            <!-- Column Numbers -->
+            <div class="col-numbers" id="col-numbers"></div>
+            <!-- Dungeon Grid -->
+            <div class="grid" id="grid"></div>
+        </div>
+    </div>
+    <div class="bottom-right">
+        <button class="size-button" id="save-load-button">Save/Load</button>
+        <div class="save-load-menu" id="save-load-menu">
+            <input type="text" class="file-name-input" id="file-name-input" placeholder="Enter file name">
+            <button class="mode-button" id="save-grid-button">Save Grid</button>
+            <button class="mode-button" id="load-grid-button">Load Grid</button>
+            <input type="file" id="load-grid-input" class="hidden" accept=".json">
+            <button class="mode-button" id="save-jpeg-button">Save as JPEG</button>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const grid = document.getElementById('grid');
+            const rowNumbers = document.getElementById('row-numbers');
+            const colNumbers = document.getElementById('col-numbers');
+            const gridSizeInput = document.getElementById('grid-size-input');
+            const setSizeButton = document.getElementById('set-size-button');
+            const resetNumberButton = document.getElementById('reset-number-button');
+            const clearNumbersButton = document.getElementById('clear-numbers-button');
+            const showSizeInputButton = document.getElementById('show-size-input-button');
+            const gridSizeContainer = document.getElementById('grid-size-container');
+            const backButton = document.getElementById('back-button');
+            const warningMessage = document.getElementById('warning-message');
+            const advancedColorButton = document.getElementById('advanced-color-button');
+            const advancedSettings = document.getElementById('advanced-settings');
+            const normalSettings = document.getElementById('normal-settings');
+            const backToNormalButton = document.getElementById('back-to-normal-button');
+            const greenButton = document.getElementById('green-button');
+            const redButton = document.getElementById('red-button');
+            const blueButton = document.getElementById('blue-button');
+            const yellowButton = document.getElementById('yellow-button');
+            const saveGridButton = document.getElementById('save-grid-button');
+            const loadGridButton = document.getElementById('load-grid-button');
+            const loadGridInput = document.getElementById('load-grid-input');
+            const saveLoadButton = document.getElementById('save-load-button');
+            const saveLoadMenu = document.getElementById('save-load-menu');
+            const saveJpegButton = document.getElementById('save-jpeg-button');
+            const fileNameInput = document.getElementById('file-name-input');
+
+            let colorMode = 1; // 1 for white, 2 for black
+            let advancedColor = null; // null means no advanced color selected
+            let doorMode = false; // false for off, true for on
+            let numberMode = false; // false for off, true for on
+            let lastNumberClicked = 0; // Initialize last clicked number
+            let gridRows = 24; // Default grid rows
+            let gridCols = 24; // Default grid columns
+
+            function createGrid(rows, cols) {
+                grid.innerHTML = ''; // Clear existing grid
+                rowNumbers.innerHTML = ''; // Clear row numbers
+                colNumbers.innerHTML = ''; // Clear column numbers
+
+                // Create row and column numbers
+                for (let i = 1; i <= rows; i++) {
+                    const rowNumber = document.createElement('div');
+                    rowNumber.classList.add('number');
+                    rowNumber.textContent = i;
+                    rowNumbers.appendChild(rowNumber);
+                }
+                for (let i = 1; i <= cols; i++) {
+                    const colNumber = document.createElement('div');
+                    colNumber.classList.add('number');
+                    colNumber.textContent = i;
+                    colNumbers.appendChild(colNumber);
+                }
+
+                grid.style.gridTemplateColumns = `repeat(${cols}, 20px)`;
+                grid.style.gridTemplateRows = `repeat(${rows}, 20px)`;
+                
+                for (let row = 0; row < rows; row++) {
+                    for (let col = 0; col < cols; col++) {
+                        const cell = document.createElement('div');
+                        cell.classList.add('cell');
+
+                        // Initialize outer edges as black
+                        if (row === 0 || row === rows - 1 || col === 0 || col === cols - 1) {
+                            cell.classList.add('black');
+                        }
+
+                        // Function to handle painting behavior
+                        function handlePaint(cell) {
+                            if (numberMode) {
+                                incrementNumber(cell);
+                            } else {
+                                toggleColor(cell);
+                            }
+                        }
+
+                        // Toggle color or number mode on click or drag
+                        cell.addEventListener('mousedown', () => {
+                            handlePaint(cell);
+                        });
+
+                        // Toggle color or number mode on hover if mouse button is pressed
+                        cell.addEventListener('mouseenter', (event) => {
+                            if (event.buttons === 1) {
+                                handlePaint(cell);
+                            }
+                        });
+
+                        grid.appendChild(cell);
+                    }
+                }
+            }
+
+            function toggleColor(cell) {
+                cell.textContent = ''; // Clear any number
+                if (doorMode) {
+                    cell.classList.add('door');
+                    cell.classList.remove('black', 'green', 'red', 'blue', 'yellow');
+                } else if (advancedColor) {
+                    cell.classList.remove('black', 'green', 'red', 'blue', 'yellow', 'door');
+                    cell.classList.add(advancedColor);
+                } else if (colorMode === 1) {
+                    cell.classList.remove('black', 'green', 'red', 'blue', 'yellow', 'door'); // Always remove 'black', 'advanced colors' and 'door' class in white mode
+                } else if (colorMode === 2) {
+                    cell.classList.add('black');
+                    cell.classList.remove('green', 'red', 'blue', 'yellow', 'door'); // Always add 'black' class and remove 'advanced colors' and 'door' in black mode
+                }
+            }
+
+            function incrementNumber(cell) {
+                lastNumberClicked++;
+                cell.textContent = lastNumberClicked;
+                cell.classList.remove('black', 'green', 'red', 'blue', 'yellow', 'door'); // Ensure cell becomes white and removes advanced colors and door
+            }
+
+            function updateColorModeButton() {
+                const button = document.getElementById('color-mode-button');
+                button.textContent = `Color Mode: ${colorMode === 1 ? 'White' : 'Black'}`;
+            }
+
+            function updateDoorModeButton() {
+                const button = document.getElementById('door-mode-button');
+                button.textContent = `Door Mode: ${doorMode ? 'On' : 'Off'}`;
+            }
+
+            function updateNumberModeButton() {
+                const button = document.getElementById('number-mode-button');
+                button.textContent = `Number Mode: ${numberMode ? 'On' : 'Off'}`;
+            }
+
+            function updateToggleVisibility() {
+                const colorToggleContainer = document.getElementById('color-toggle-container');
+                const doorToggleContainer = document.getElementById('door-toggle-container');
+                const numberToggleContainer = document.getElementById('number-toggle-container');
+
+                if (numberMode || doorMode) {
+                    showSizeInputButton.classList.add('hidden'); // Hide the set size button
+                } else {
+                    showSizeInputButton.classList.remove('hidden'); // Show the set size button
+                }
+
+                if (numberMode) {
+                    colorToggleContainer.classList.add('hidden');
+                    doorToggleContainer.classList.add('hidden');
+                    numberToggleContainer.classList.remove('hidden'); // Show number mode toggle container
+                    resetNumberButton.classList.remove('hidden'); // Show reset number button
+                    clearNumbersButton.classList.remove('hidden'); // Show clear numbers button
+                } else if (doorMode) {
+                    colorToggleContainer.classList.add('hidden');
+                    numberToggleContainer.classList.add('hidden');
+                    doorToggleContainer.classList.remove('hidden'); // Show door mode toggle container
+                    resetNumberButton.classList.add('hidden'); // Hide reset number button
+                    clearNumbersButton.classList.add('hidden'); // Hide clear numbers button
+                } else {
+                    colorToggleContainer.classList.remove('hidden');
+                    doorToggleContainer.classList.remove('hidden');
+                    numberToggleContainer.classList.remove('hidden'); // Show all toggle containers
+                    resetNumberButton.classList.add('hidden'); // Hide reset number button
+                    clearNumbersButton.classList.add('hidden'); // Hide clear numbers button
+                }
+            }
+
+            function clearAllNumbers() {
+                const cells = document.querySelectorAll('.cell');
+                cells.forEach(cell => {
+                    cell.textContent = '';
+                });
+                lastNumberClicked = 0; // Reset the last number clicked counter
+            }
+
+            function updateGridSize() {
+                const size = gridSizeInput.value;
+                const [rows, cols] = size.split('x').map(Number);
+                if (!isNaN(rows) && !isNaN(cols) && rows > 0 && cols > 0) {
+                    gridRows = rows;
+                    gridCols = cols;
+                    createGrid(gridRows, gridCols);
+                    gridSizeContainer.classList.add('hidden'); // Hide input container after setting size
+                    showSizeInputButton.classList.remove('hidden'); // Show the set size button
+                    warningMessage.classList.add('hidden'); // Hide the warning message
+                    normalSettings.classList.remove('hidden'); // Show normal settings
+                } else {
+                    alert('Invalid size. Please use the format "NxN" where N is a positive number.');
+                }
+            }
+
+            function getGridState() {
+                const cells = document.querySelectorAll('.cell');
+                const gridState = Array.from(cells).map(cell => ({
+                    color: cell.className.split(' ').filter(cls => cls !== 'cell').join(' '),
+                    text: cell.textContent
+                }));
+                return {
+                    gridState,
+                    rows: gridRows,
+                    cols: gridCols
+                };
+            }
+
+            function setGridState({ gridState, rows, cols }) {
+                gridRows = rows;
+                gridCols = cols;
+                createGrid(gridRows, gridCols);
+                const cells = document.querySelectorAll('.cell');
+                gridState.forEach((state, index) => {
+                    const cell = cells[index];
+                    cell.className = `cell ${state.color}`;
+                    cell.textContent = state.text;
+                });
+            }
+
+            saveGridButton.addEventListener('click', () => {
+                const gridState = getGridState();
+                const fileName = fileNameInput.value.trim() || 'grid-state'; // Use default name if input is empty
+                const blob = new Blob([JSON.stringify(gridState)], { type: 'application/json' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `${fileName}.json`;
+                link.click();
+            });
+
+            loadGridButton.addEventListener('click', () => {
+                loadGridInput.click();
+            });
+
+            loadGridInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        const gridState = JSON.parse(e.target.result);
+                        setGridState(gridState);
+                    };
+                    reader.readAsText(file);
+                }
+            });
+
+            saveJpegButton.addEventListener('click', () => {
+                html2canvas(grid).then(canvas => {
+                    const fileName = fileNameInput.value.trim() || 'grid'; // Use default name if input is empty
+                    const link = document.createElement('a');
+                    link.href = canvas.toDataURL('image/jpeg');
+                    link.download = `${fileName}.jpeg`;
+                    link.click();
+                });
+            });
+
+            saveLoadButton.addEventListener('click', () => {
+                saveLoadMenu.classList.toggle('visible');
+            });
+
+            // Initialize the default grid
+            createGrid(gridRows, gridCols);
+
+            // Toggle color mode on click
+            document.getElementById('color-mode-button').addEventListener('click', () => {
+                colorMode = colorMode === 1 ? 2 : 1;
+                advancedColor = null; // Reset advanced color when toggling color mode
+                updateColorModeButton();
+                doorMode = false; // Turn off door mode when color mode is toggled
+                updateToggleVisibility();
+            });
+
+            // Toggle door mode on click
+            document.getElementById('door-mode-button').addEventListener('click', () => {
+                doorMode = !doorMode;
+                updateDoorModeButton();
+                updateToggleVisibility();
+            });
+
+            // Toggle number mode on click
+            document.getElementById('number-mode-button').addEventListener('click', () => {
+                numberMode = !numberMode;
+                updateNumberModeButton();
+                updateToggleVisibility();
+            });
+
+            // Add event listener for the reset number button
+            resetNumberButton.addEventListener('click', () => {
+                lastNumberClicked = 0;
+            });
+
+            // Add event listener for the clear numbers button
+            clearNumbersButton.addEventListener('click', clearAllNumbers);
+
+            // Add event listener for the set size button
+            setSizeButton.addEventListener('click', updateGridSize);
+
+            // Add event listener for the show size input button
+            showSizeInputButton.addEventListener('click', () => {
+                gridSizeContainer.classList.remove('hidden'); // Show the input container
+                showSizeInputButton.classList.add('hidden'); // Hide the set size button
+                warningMessage.classList.remove('hidden'); // Show the warning message
+                normalSettings.classList.add('hidden'); // Hide normal settings
+            });
+
+            // Add event listener for the back button
+            backButton.addEventListener('click', () => {
+                gridSizeContainer.classList.add('hidden'); // Hide the input container
+                showSizeInputButton.classList.remove('hidden'); // Show the set size button
+                warningMessage.classList.add('hidden'); // Hide the warning message
+                normalSettings.classList.remove('hidden'); // Show normal settings
+            });
+
+            // Toggle advanced color menu on click
+            advancedColorButton.addEventListener('click', () => {
+                normalSettings.classList.add('hidden'); // Hide normal settings
+                advancedSettings.classList.remove('hidden'); // Show advanced settings
+                showSizeInputButton.classList.add('hidden'); // Hide set size button
+            });
+
+            // Back to normal settings
+            backToNormalButton.addEventListener('click', () => {
+                advancedSettings.classList.add('hidden'); // Hide advanced settings
+                normalSettings.classList.remove('hidden'); // Show normal settings
+                showSizeInputButton.classList.remove('hidden'); // Show set size button
+                advancedColor = null; // Reset advanced color when switching back
+            });
+
+            // Set advanced color on click
+            greenButton.addEventListener('click', () => {
+                advancedColor = 'green';
+            });
+            redButton.addEventListener('click', () => {
+                advancedColor = 'red';
+            });
+            blueButton.addEventListener('click', () => {
+                advancedColor = 'blue';
+            });
+            yellowButton.addEventListener('click', () => {
+                advancedColor = 'yellow';
+            });
+
+            // Prevent context menu on right-click for better user experience
+            document.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+            });
+        });
+    </script>
+</body>
+</html>
